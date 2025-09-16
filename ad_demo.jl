@@ -20,7 +20,7 @@ end
 begin
 	using PlutoUI
 	using PlutoUI: Slider # since Makie exports Slider, too
-	TableOfContents(title="📚 Table of Contents", indent=true, depth=4, aside=true)
+	# TableOfContents(title="📚 Table of Contents", indent=true, depth=4, aside=true)
 end
 
 # ╔═╡ 2e5ab3fe-e440-4b6b-bc32-834955b7e065
@@ -32,17 +32,17 @@ begin
 				   Lines = (linewidth = 2,),
 				   markersize = 16)
 	end
-	
+
 	using LinearAlgebra
-	
+
 	using LaTeXStrings
-	
+
 	using DoubleFloats
-	
+
 	using BenchmarkTools
-	
+
 	using StaticArrays
-	
+
 	using Enzyme
 end
 
@@ -54,7 +54,7 @@ html"""
 # ╔═╡ f4679910-d41c-4b7b-9737-914909ae7fbd
 html"""
 <center>
-Based on the material from <a href="https:/github.com/ranocha/Julia_User_Group_Mainz/tree/main/2024-10-31__Introduction_to_AD">github.com/ranocha/Julia_User_Group_Mainz/tree/main/2024-10-31__Introduction_to_AD</a>
+Based on the material from the <a href="https:/github.com/ranocha/Julia_User_Group_Mainz/tree/main/2024-10-31__Introduction_to_AD">Mainz Julia user group</a>
 </center>
 """
 
@@ -67,13 +67,8 @@ html"""
 begin
 md"""
 $$\frac{f(t + h) - f(t)}{h} \approx f'(t)$$
-
-Round-off error since we represent real numbers via *floating point numbers with fixed precision*.
 """
 end
-
-# ╔═╡ 151d76cf-a1ce-4b64-9661-b34ed516dd30
-nextfloat(1.0)
 
 # ╔═╡ d695f09b-7404-44a2-862c-1a1bf21c76cc
 eps(Float64)
@@ -90,16 +85,23 @@ $$f^′(t) = \frac{2 t + e^{\sin t}  \cos t}{t^2 + e^{\sin t}}$$
 
 # ╔═╡ 33b67c04-8e28-4361-a572-6379f3a69ac0
 md"
-## Computational graph of $f$
+## The idea behind AD: Computational graph of $f$
 "
+
+# ╔═╡ 188a1ec1-6896-4e58-bc85-09837da6e1a5
+md"""
+$$f(t) = \log(t^2 + e^{\sin t })$$
+"""
 
 # ╔═╡ f06c5657-70d2-4300-a6c5-095c0b7a3fba
 md"
-## Computational graph of $f'$
+## The idea behind AD: Computational graph of $f'$
 "
 
 # ╔═╡ 190fc532-f613-4226-9553-ecae2dc08614
-md"To compute the derivative, we have to apply the chain rule to each step along the graph."
+md"""
+$$f^′(t) = \frac{2 t + e^{\sin t}  \cos t}{t^2 + e^{\sin t}}$$
+"""
 
 # ╔═╡ 57215519-d6d8-4b24-955c-fb947e1d3f05
 md"
@@ -108,7 +110,7 @@ md"
 
 # ╔═╡ b5f457bd-2a23-4508-be74-e7cd820e1d97
 md"""
-[Dual numbers](https://en.wikipedia.org/wiki/Dual_number) carry both a `value` which can be represented as
+[Dual numbers](https://en.wikipedia.org/wiki/Dual_number) carry both a `value` and the derivative which can be represented as
 
 $$(f(t), f'(t)),$$ 
 
@@ -141,7 +143,7 @@ instead of $\mathrm{i}^2 = -1$. Thus, the dual number have the algebraic structu
 
 # ╔═╡ da94677b-9af7-4f21-ac3f-c3faba346ba1
 md"
-## Dual numbers: multiplication
+## Dual numbers: multiplication and division
 "
 
 # ╔═╡ 9217c370-aef6-4b1e-894e-123586204321
@@ -152,37 +154,54 @@ $$(a + \varepsilon b) (c + \varepsilon d) = a c + \varepsilon (a d + b c),$$
 
 which is just the product rule of calculus because
 
-$$(f(t) + \varepsilon f'(t)) (g(t) + \varepsilon g'(t)) = f(t) g(t) + \varepsilon (f(t) g'(t) + g(t) f'(t)).$$
+$$[f(t) + \varepsilon f'(t)] [g(t) + \varepsilon g'(t)] = f(t) g(t) + \varepsilon (f(t) g'(t) + g(t) f'(t)).$$
+"""
+
+# ╔═╡ c26120e1-83e5-420d-82a5-6d07f24d9f73
+md"""
+Similarly,
+
+$$(a + \varepsilon b) / (c + \varepsilon d) = \frac{a}{c} + \varepsilon \frac{c b - a d}{b^2}$$
+
+"""
+
+# ╔═╡ bbbc7425-322f-4011-9398-cdcd9cd2ed28
+md"""
+$$[f(t) + \varepsilon f'(t)] / [g(t) + \varepsilon g'(t)] = \frac{f}{g}(t) + \varepsilon \frac{f' g - f g'}{g^2}(t).$$
 """
 
 # ╔═╡ b6ab107c-1863-4f38-99a7-5bbcc75d5486
 md"
-## Implementing dual numbers to perform automatic differentiation
+## Implementing dual numbers: data struct
 "
 
 # ╔═╡ a8e22d08-c2c8-4ee4-87fe-7b665edc4a3e
-begin
-	struct MyDual{T <: Real} <: Number
-		value::T
-		deriv::T
-	end
-	MyDual(x::Real, y::Real) = MyDual(promote(x, y)...)
+struct Dual <: Number
+	value::Float64
+	deriv::Float64
 end
 
 # ╔═╡ 9367a32a-160f-418b-9938-8e766a77e475
 md"Now, we can create such dual numbers."
 
 # ╔═╡ d329aecc-4696-4740-9a86-d5da14cce69b
-MyDual(5, 2.0)
+Dual(5, 2)
 
 # ╔═╡ 9881c9b3-c1df-4e69-827f-a06347240dc5
-md"Next, we need to implement the required interface methods for numbers."
+md"
+## Implementing dual numbers: addition and subtraction
+"
+
+# ╔═╡ 33f857cd-65f5-40ae-9b65-bf616747a2c0
+md"""
+$$f(t) + \varepsilon f'(t) \pm g(t) + \varepsilon g'(t) = (f \pm g)(t) + \varepsilon (f' \pm g')(t).$$
+"""
 
 # ╔═╡ 597ac91c-ac82-4281-903e-57d82cd2c79b
-Base.:+(x::MyDual, y::MyDual) = MyDual(x.value + y.value, x.deriv + y.deriv)
+Base.:+(x::Dual, y::Dual) = Dual(x.value + y.value, x.deriv + y.deriv)
 
 # ╔═╡ f48aeca4-2833-4571-82fa-dfddfc3f583b
-Base.:-(x::MyDual, y::MyDual) = MyDual(x.value - y.value, x.deriv - y.deriv)
+Base.:-(x::Dual, y::Dual) = Dual(x.value - y.value, x.deriv - y.deriv)
 
 # ╔═╡ b9ac9b78-ada7-4a63-bd86-fb7bc5c1bdec
 nextfloat(1.0) - 1.0
@@ -191,40 +210,91 @@ nextfloat(1.0) - 1.0
 (nextfloat(1.234e5) - 1.234e5)
 
 # ╔═╡ 1489d2c7-4bd3-49b3-99e2-74ce1e2211ce
-MyDual(1, 2) - MyDual(2.0, 3)
+Dual(1, 2) - Dual(2, 3)
+
+# ╔═╡ 88d9dfe5-de81-40ba-9995-7e5026603c30
+md"
+## Implementing dual numbers: multiplication and division
+"
+
+# ╔═╡ 2b36a9db-6a41-4a1b-9459-6a4ca40b9fdc
+md"""
+$$[f(t) + \varepsilon f'(t)] [g(t) + \varepsilon g'(t)] = f(t) g(t) + \varepsilon (f(t) g'(t) + g(t) f'(t)).$$
+"""
+
+# ╔═╡ ce5d4c1e-fcf6-425a-8124-0c07f1bc1de0
+md"""
+$$[f(t) + \varepsilon f'(t)] [g(t) + \varepsilon g'(t)] = f(t) g(t) + \varepsilon (f(t) g'(t) + g(t) f'(t)).$$
+"""
+
+# ╔═╡ 2b42cf3b-1507-4f5b-9cc9-6ae90e490966
+md"
+## Implementing dual numbers: general function composition
+"
+
+# ╔═╡ ec1ac436-5b3a-4cae-8536-b4b5a8dccf2d
+md"""
+Let
+
+$D(a,b)= D(f(c),f'(c)) = \texttt{Dual}(f(c),f'(c))$
+Then we want
+
+$\begin{align}g(D(f(c),f'(c))) &= D(g(f(c)), (gof)'(c)) \\ &= D(g(f(c)), g'(f(c)) f'(c)) \\ \implies g(D(a, b)) &= D(g(a), g'(a) b)\end{align}$
+
+In particular, choosing $f(x) = x$ 
+
+$\begin{align}g(D(c,1)) &= D(g(c), g'(c))\end{align}$
+"""
 
 # ╔═╡ dab7c717-8980-4f52-b8af-b0d09577771f
-md"We also need to tell Julia how to convert and promote our dual numbers."
+md"
+## Implementing dual numbers: promotion and special functions
+"
 
 # ╔═╡ 0dcab12e-8fbd-4b26-902f-00416f29a816
-Base.convert(::Type{MyDual{T}}, x::Real) where {T <: Real} = MyDual(x, zero(T))
+Base.convert(::Type{Dual}, x::Real) = Dual(x, 0.0)
 
 # ╔═╡ 4735f5ae-e497-4949-95d9-f90952a47435
-Base.promote_rule(::Type{MyDual{T}}, ::Type{<:Real}) where {T <: Real} = MyDual{T}
-
-# ╔═╡ 1a5f7311-ec24-4f3a-9d35-d8a636736ed1
-md"Next, we need to implement the well-know derivatives of special functions."
+Base.promote_rule(::Type{Dual}, ::Type{<:Real}) = Dual
 
 # ╔═╡ d89ea840-631c-44e3-8839-9a055a961877
-md"Finally, we can differentiate the function `f` we started with!"
+md"
+## Automantic differentiation in action
+"
 
-# ╔═╡ 482a3cbc-b4cf-4cbd-aa35-7913d03840fb
-md"This works since the compiler basically performs the transformation `f` $\to$ `f_graph_derivative` for us. We can see this by looking at one stage of the Julia compilation process as follows."
-
-# ╔═╡ 4a47abae-0952-4da5-8260-ea35f22697a8
-md"Since the compiler can see all the different steps, it can generate very efficient code."
+# ╔═╡ 872452d1-fac2-4de4-890b-56f26c1a0478
+md"""
+$$f^′(t) = \frac{2 t + e^{\sin t}  \cos t}{t^2 + e^{\sin t}}$$
+"""
 
 # ╔═╡ cdd33aab-4c45-447c-a5a3-79610bb5621a
 md"Now, we have a versatile tool to compute derivatives of functions depending on a single variable."
 
 # ╔═╡ c31eb587-90e3-480a-921d-ebcddd749118
-derivative(f, x::Real) = f(MyDual(x, one(x))).deriv
+derivative(f, t::Real) = f(Dual(t, 1.0)).deriv; # Gives f'(t)
 
-# ╔═╡ 5647fd0e-ce4c-4c54-b6b8-5bdcc4a74cd6
-md"We can also get the derivative as a function itself."
+# ╔═╡ 1ce50fe9-d10d-45d0-85a9-d572c894391d
+md"
+## Automantic differentiation in action: Newton's method
+"
 
-# ╔═╡ 07b170ea-1fe4-43ac-b78a-c34e59a55526
-derivative(f) = x -> derivative(f, x)
+# ╔═╡ 039ea7e4-845c-4fb4-ad2c-582408c558e3
+md"""
+$$t^{n+1} = t^n - \frac{f(t^n)}{f'(t^n)}$$
+"""
+
+# ╔═╡ 2256337e-7cf7-44c0-8855-f019938b878b
+md"""
+## Further resources
+
+There is a lot of material online about AD (in Julia), e.g.,
+
+- [Enzyme.jl](https://github.com/EnzymeAD/Enzyme.jl)
+- [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl)
+- [Lecture notes "Advanced Topics from Scientific Computing" by Jürgen Fuhrmann](https://www.wias-berlin.de/people/fuhrmann/AdSciComp-WS2324/)
+- [https://dj4earth.github.io/MPE24](https://dj4earth.github.io/MPE24/)
+- [A JuliaLabs workshop](https://github.com/JuliaLabs/Workshop-OIST/blob/master/Lecture%203b%20--%20AD%20in%2010%20minutes.ipynb)
+"""
 
 # ╔═╡ c98748bd-545f-49b6-bb6a-e06dd0719d73
 md"""## Handling multiple variables
@@ -235,8 +305,8 @@ partial derivatives at the same time. We can just reuse our scalar code for this
 
 # ╔═╡ e6809491-e021-4696-bf44-49a9a1936ac4
 function gradient_scalar(g, x, y)
-	g_x = g(MyDual(x, 1), y).deriv
-	g_y = g(x, MyDual(y, 1)).deriv
+	g_x = g(Dual(x, 1), y).deriv
+	g_y = g(x, Dual(y, 1)).deriv
 	return (g_x, g_y)
 end
 
@@ -247,7 +317,7 @@ This is totally fine in this case but can be some overhead for larger applicatio
 To improve the performance, we can keep track of multiple derivatives at the
 same time (sometimes referred to as *batching*). 
 Thus, instead of having just a single scalar derivative value
-in each `MyDual`, we have a vector of partial derivatives. If we're just dealing
+in each `Dual`, we have a vector of partial derivatives. If we're just dealing
 with a fixed and small number of partial derivatives, it's more efficient to use
 [StaticArrays.jl](https://github.com/JuliaArrays/StaticArrays.jl) for this."""
 
@@ -265,15 +335,15 @@ function Base.:+(x::MyMultiDual, y::MyMultiDual)
 end
 
 # ╔═╡ 6b8edf00-d973-4228-9524-86670e4a989a
-MyDual(1, 2) + MyDual(2.0, 3)
+Dual(1, 2) + Dual(2, 3)
 
 # ╔═╡ 3c2c092d-2d52-4379-99f0-6ccc2d237668
-function Base.:*(x::MyDual, y::MyDual)
-	MyDual(x.value * y.value, x.value * y.deriv + x.deriv * y.value)
+function Base.:*(x::Dual, y::Dual)
+	Dual(x.value * y.value, x.value * y.deriv + x.deriv * y.value)
 end
 
 # ╔═╡ 590f30b1-9c90-4b03-83da-bea3ea92dd60
-MyDual(1, 2) + 3.0
+Dual(1.0, 2.0) + 3.0
 
 # ╔═╡ 9b318e2a-8f7f-4350-86b6-0713e1603c42
 function Base.:*(x::MyMultiDual, y::MyMultiDual)
@@ -281,44 +351,60 @@ function Base.:*(x::MyMultiDual, y::MyMultiDual)
 end
 
 # ╔═╡ ccf335ff-e40d-4144-8579-81c2c7c1046b
-MyDual(1, 2) * MyDual(2.0, 3)
+Dual(1, 2) * Dual(2.0, 3)
 
 # ╔═╡ 4afbb4a3-3630-4e80-90b9-f7d1a946dc43
-function Base.:/(x::MyDual, y::MyDual)
-	MyDual(x.value / y.value, (x.deriv * y.value - x.value * y.deriv) / y.value^2)
+function Base.:/(x::Dual, y::Dual)
+	Dual(x.value / y.value, (x.deriv * y.value - x.value * y.deriv) / y.value^2)
 end
 
 # ╔═╡ 92a7e494-86b5-4d1f-ad6b-622b5f184bfe
-MyDual(1, 2) / MyDual(2.0, 3)
+Dual(1, 2) / Dual(2.0, 3)
 
 # ╔═╡ 28ae9185-edd2-4df4-a336-2c7face37228
-Base.log(x::MyDual) = MyDual(log(x.value), x.deriv / x.value)
+Base.log(x::Dual) = Dual(log(x.value), x.deriv / x.value)
 
-# ╔═╡ b6c470da-2708-4fe7-a95c-eeab90ff9944
-log(MyDual(1.0, 1))
+# ╔═╡ 53918f5f-fd16-4fa4-9c92-31db35b914a3
+function newton_step(func, x)
+	d = func(Dual(x, 1.0))
+	return x - d.value / d.deriv
+end;
+
+# ╔═╡ e79abdd7-cc18-4b7b-bc83-78e0e7cc00b2
+function Base.cos(x::Dual)
+	return Dual(cos(x.value), -sin(x.value) * x.deriv)
+end
 
 # ╔═╡ 72922b27-6172-44ca-93bc-e8380b92baca
-function Base.sin(x::MyDual)
-	si, co = sincos(x.value)
-	return MyDual(si, co * x.deriv)
+function Base.sin(x::Dual)
+	return Dual(sin(x.value), cos(x.value) * x.deriv)
 end
 
 # ╔═╡ 9ce7e5e5-50db-44bb-9642-e6a25fa502f6
-sin(MyDual(π, 1))
+sin(Dual(π, 1)) # Compute sin'(pi) 
 
-# ╔═╡ e79abdd7-cc18-4b7b-bc83-78e0e7cc00b2
-function Base.cos(x::MyDual)
-	si, co = sincos(x.value)
-	return MyDual(co, -si * x.deriv)
+# ╔═╡ b4cbac34-45d8-4057-9fad-e599a88f4c9e
+many_sin(x) = sin(sin(sin(sin(sin(sin(sin(sin(sin(sin(x^2))))))))))
+
+# ╔═╡ 28551f09-c3e2-4c68-b4c8-f901b9ffed9b
+derivative(many_sin, 0.0)
+
+# ╔═╡ 6a832d26-f655-462f-8a34-936717b5c2cd
+function many_sin2(x)
+	local y = x
+	for k in 1:100
+		y = sin(y)
+	end
+	return y
 end
 
-# ╔═╡ 1745325b-7779-4ef6-b814-e28b95d3c2bf
-cos(MyDual(π, 1))
+# ╔═╡ 179e9643-2b4c-48fe-8382-4bf7c2b99053
+derivative(many_sin2, 0.1)
 
 # ╔═╡ c5837698-a27d-4ba2-815a-c4ab57f7987b
-function Base.exp(x::MyDual)
+function Base.exp(x::Dual)
 	e = exp(x.value)
-	return MyDual(e, e * x.deriv)
+	return Dual(e, e * x.deriv)
 end
 
 # ╔═╡ 43a3be14-e23a-474f-9f87-b1a8eb29a3c2
@@ -332,23 +418,23 @@ end
 
 # ╔═╡ 6421ff3c-9b52-45f2-a4d8-8f3358a56d0d
 let
-	fig = Figure()
-	ax = Axis(fig[1, 1]; 
-			  xlabel = L"Step size $h$", 
+	fig = Figure(size = (400,300))
+	ax = Axis(fig[1, 1];
+			  xlabel = L"Step size $h$",
 			  ylabel = "Error of the forward differences",
 			  xscale = log10, yscale = log10)
-	
+
 	f = f_diff
 	x = one(FloatType)
 	(f′x,) = autodiff(Forward, f, Duplicated(Float64(x), 1.0))
 	h = FloatType.(10.0 .^ range(-20, 0, length = 500))
 	fd_error(h) = max(abs((f(x + h) - f(x)) / h - f′x), eps(x) / 100)
 	lines!(ax, h, fd_error.(h); label = "")
-	
+
 	h_def = sqrt(eps(x))
 	# scatter!(ax, [h_def], [fd_error(h_def)]; color = :gray)
 	# text!(ax, "sqrt(eps(x))"; position=(5 * h_def, fd_error(h_def)), space = :data)
-	
+
 	fig
 end
 
@@ -372,16 +458,16 @@ end
 function f_graph_derivative(t)
 	c1 = t^2
 	c1_ε = 2 * t
-	
+
 	c2 = sin(t)
 	c2_ε = cos(t)
-	
+
 	c3 = exp(c2)
 	c3_ε = exp(c2) * c2_ε
-	
+
 	c4 = c1 + c3
 	c4_ε = c1_ε + c3_ε
-	
+
 	c5 = log(c4)
 	c5_ε = c4_ε / c4
 	return c5, c5_ε
@@ -390,21 +476,18 @@ end
 # ╔═╡ 33e7313b-9877-4da5-aeeb-9f0fdae7458c
 f_graph_derivative(1.0)
 
-# ╔═╡ 47ba60d1-8ce6-45b9-8033-74266d4f32c2
-@code_typed f_graph_derivative(1.0)
+# ╔═╡ cff72ac8-9b52-4efa-ac5b-f2af92522f43
+func(x) = x^4 - 3*x*exp(x) + 2x + exp(exp(x^2)) - 2.0 * pi + sin(log(x^6 + 1));
 
-# ╔═╡ 3c85e394-b093-4888-846a-fb43c90258e3
-@benchmark f_graph_derivative($(Ref(1.0))[])
-
-# ╔═╡ 38b0e342-1368-4ddb-867a-467afc725029
-exp(MyDual(1.0, 1))
-
-# ╔═╡ 8ac44757-b52a-4c4d-83aa-39f328361dcb
-derivative(x -> 3 * x^2 + 4 * x + 5, 2)
-
-# ╔═╡ 7dfdfb02-517d-4d8f-b6da-9f725ddb70b2
-derivative(3) do x
-	sin(x) * log(x)
+# ╔═╡ 305680fc-dc51-461e-bc1a-690f99eb485d
+begin	
+	local x = 1.0 # initial_gues
+	local error = 1e20
+	while error > 1e-10
+		x = newton_step(func, x)
+		error = func(x)
+	end
+	x, func(x)
 end
 
 # ╔═╡ ca134138-cc53-4827-927e-3f8c0b8efe28
@@ -447,7 +530,7 @@ let
 	x = randn(2)
 	result_ad = gradient_scalar(f, x...)
 	result = 2 * (A * x - b)' * A
-	
+
 	abs2(result_ad[1] - result[1]) + abs2(result_ad[2] - result[2])
 end
 
@@ -576,23 +659,7 @@ f(1.0) ≈ f_graph(1.0)
 
 # ╔═╡ 91796846-fb91-491f-9fa0-3678ddf8e93d
 let t = 1.0, h = sqrt(eps())
-	(f(t + h) - f(t)) / h
-end
-
-# ╔═╡ 375e0d9f-c645-4e46-a587-b23171285864
-let
-	f_dual = f(MyDual(1.0, 1.0))
-	(f_dual.value, f_dual.deriv) .- f_graph_derivative(1.0)
-end
-
-# ╔═╡ c10053e1-8cf9-4c57-a048-fcdf1d876ab0
-@code_typed f(MyDual(1.0, 1.0))
-
-# ╔═╡ 65b81bf3-5d2c-440e-a624-bd24cf79ee30
-@benchmark f(MyDual($(Ref(1.0))[], 1.0))
-
-# ╔═╡ 27d0c7ee-db16-4a6e-9f1e-2fbd29fdf050
-derivative(f, 1.0)
+	(f(t + h) - f(t)) / h; end
 
 # ╔═╡ 815d032c-113d-4aa5-a062-f4276a81d038
 f′(Ax_b::AbstractVector) = 2 * Ax_b'
@@ -601,16 +668,7 @@ f′(Ax_b::AbstractVector) = 2 * Ax_b'
 (f(1.0), f′(1.0))
 
 # ╔═╡ 7d2bfa4e-5a39-40e6-9543-deed4ed53341
-let
-	f_dual = f(MyDual(1.0, 1.0))
-	(f_dual.value, f_dual.deriv) .- (f(1.0), f′(1.0))
-end
-
-# ╔═╡ 7d1e913c-8ca4-45f2-bbc7-904d83bf98fd
-let df = derivative(f)
-	x = range(0.1, 10.0, length = 10)
-	df.(x) - f′.(x)
-end
+f′(2.0) - f(Dual(2.0, 1.0)).deriv
 
 # ╔═╡ 41c7c37b-607c-4243-ac0e-b0ed20e6ddf2
 let
@@ -632,19 +690,6 @@ let
 	@benchmark reverse($f, $f′, $g, $g′, $h, $h′, $x)
 end
 
-# ╔═╡ 6eff228a-72f6-4101-9d0f-ab9c3049e06c
-md"""
-## Further resources
-
-There is a lot of material online about AD (in Julia), e.g.,
-
-- [Enzyme.jl](https://github.com/EnzymeAD/Enzyme.jl)
-- [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl)
-- [Lecture notes "Advanced Topics from Scientific Computing" by Jürgen Fuhrmann](https://www.wias-berlin.de/people/fuhrmann/AdSciComp-WS2324/)
-- [https://dj4earth.github.io/MPE24](https://dj4earth.github.io/MPE24/)
-- [A JuliaLabs workshop](https://github.com/JuliaLabs/Workshop-OIST/blob/master/Lecture%203b%20--%20AD%20in%2010%20minutes.ipynb)
-"""
-
 # ╔═╡ 337f2660-078f-4224-b83c-98830a66a33e
 html"""
 <h1 class="custom-heading"><center>Appendix</center></h1>
@@ -653,7 +698,7 @@ You can find code and utility material in this appendix.
 
 # ╔═╡ 371bd394-478e-420b-95ab-7d8455df70b4
 begin
-	
+
 html"""
 <style>
   .custom-heading {
@@ -662,7 +707,7 @@ html"""
   }
 </style>
 """
-	
+
 html"""
 <style>
   .title-heading {
@@ -683,13 +728,13 @@ html"""
 end
 
 # ╔═╡ 924a4046-8fce-470f-8a61-a00f35b2fddd
-html"""<style>
-main {
-	max-width: 1000px;
-	align-self: flex-start;
-	margin-left: 60px;
-}
-"""
+# html"""<style>
+# main {
+# 	max-width: 800px;
+# 	align-self: flex-start;
+# 	margin-left: 60px;
+# }
+# """
 
 # ╔═╡ 171404bd-b308-482a-871b-149a23b807b2
 space = html"<br><br><br>";
@@ -2382,7 +2427,6 @@ version = "4.1.0+0"
 # ╟─f4679910-d41c-4b7b-9737-914909ae7fbd
 # ╟─a86a2130-e736-432c-bbbc-98f8130d71db
 # ╟─23c7e21c-1f58-4a43-9a18-f4d0360e0abc
-# ╠═151d76cf-a1ce-4b64-9661-b34ed516dd30
 # ╠═b9ac9b78-ada7-4a63-bd86-fb7bc5c1bdec
 # ╠═d695f09b-7404-44a2-862c-1a1bf21c76cc
 # ╠═bbf4cecf-64c8-47c6-9f27-dbebbc59843a
@@ -2393,6 +2437,7 @@ version = "4.1.0+0"
 # ╠═c406d7fe-f92b-45ac-86a0-02d6b5142605
 # ╠═03435083-c0b6-4d10-8326-cae43b55cd4b
 # ╟─33b67c04-8e28-4361-a572-6379f3a69ac0
+# ╟─188a1ec1-6896-4e58-bc85-09837da6e1a5
 # ╠═926aad9a-9beb-45ab-ad74-796b495e3049
 # ╠═4c1c262f-c179-4366-b9e5-d2b3770b4358
 # ╟─f06c5657-70d2-4300-a6c5-095c0b7a3fba
@@ -2407,49 +2452,51 @@ version = "4.1.0+0"
 # ╟─1811b4ff-f45a-4144-8f67-abddc79c1f1c
 # ╟─da94677b-9af7-4f21-ac3f-c3faba346ba1
 # ╟─9217c370-aef6-4b1e-894e-123586204321
+# ╟─c26120e1-83e5-420d-82a5-6d07f24d9f73
+# ╟─bbbc7425-322f-4011-9398-cdcd9cd2ed28
 # ╟─b6ab107c-1863-4f38-99a7-5bbcc75d5486
 # ╠═a8e22d08-c2c8-4ee4-87fe-7b665edc4a3e
 # ╟─9367a32a-160f-418b-9938-8e766a77e475
 # ╠═d329aecc-4696-4740-9a86-d5da14cce69b
 # ╟─9881c9b3-c1df-4e69-827f-a06347240dc5
+# ╟─33f857cd-65f5-40ae-9b65-bf616747a2c0
 # ╠═597ac91c-ac82-4281-903e-57d82cd2c79b
 # ╠═6b8edf00-d973-4228-9524-86670e4a989a
 # ╠═f48aeca4-2833-4571-82fa-dfddfc3f583b
 # ╠═1489d2c7-4bd3-49b3-99e2-74ce1e2211ce
+# ╟─88d9dfe5-de81-40ba-9995-7e5026603c30
+# ╟─2b36a9db-6a41-4a1b-9459-6a4ca40b9fdc
 # ╠═3c2c092d-2d52-4379-99f0-6ccc2d237668
 # ╠═ccf335ff-e40d-4144-8579-81c2c7c1046b
+# ╟─ce5d4c1e-fcf6-425a-8124-0c07f1bc1de0
 # ╠═4afbb4a3-3630-4e80-90b9-f7d1a946dc43
 # ╠═92a7e494-86b5-4d1f-ad6b-622b5f184bfe
+# ╟─2b42cf3b-1507-4f5b-9cc9-6ae90e490966
+# ╟─ec1ac436-5b3a-4cae-8536-b4b5a8dccf2d
 # ╟─dab7c717-8980-4f52-b8af-b0d09577771f
 # ╠═0dcab12e-8fbd-4b26-902f-00416f29a816
 # ╠═4735f5ae-e497-4949-95d9-f90952a47435
 # ╠═590f30b1-9c90-4b03-83da-bea3ea92dd60
-# ╟─1a5f7311-ec24-4f3a-9d35-d8a636736ed1
 # ╠═72922b27-6172-44ca-93bc-e8380b92baca
 # ╠═9ce7e5e5-50db-44bb-9642-e6a25fa502f6
 # ╠═e79abdd7-cc18-4b7b-bc83-78e0e7cc00b2
-# ╠═1745325b-7779-4ef6-b814-e28b95d3c2bf
 # ╠═28ae9185-edd2-4df4-a336-2c7face37228
-# ╠═b6c470da-2708-4fe7-a95c-eeab90ff9944
 # ╠═c5837698-a27d-4ba2-815a-c4ab57f7987b
-# ╠═38b0e342-1368-4ddb-867a-467afc725029
 # ╟─d89ea840-631c-44e3-8839-9a055a961877
+# ╟─872452d1-fac2-4de4-890b-56f26c1a0478
 # ╠═7d2bfa4e-5a39-40e6-9543-deed4ed53341
-# ╠═375e0d9f-c645-4e46-a587-b23171285864
-# ╟─482a3cbc-b4cf-4cbd-aa35-7913d03840fb
-# ╠═c10053e1-8cf9-4c57-a048-fcdf1d876ab0
-# ╠═47ba60d1-8ce6-45b9-8033-74266d4f32c2
-# ╟─4a47abae-0952-4da5-8260-ea35f22697a8
-# ╠═3c85e394-b093-4888-846a-fb43c90258e3
-# ╠═65b81bf3-5d2c-440e-a624-bd24cf79ee30
 # ╟─cdd33aab-4c45-447c-a5a3-79610bb5621a
 # ╠═c31eb587-90e3-480a-921d-ebcddd749118
-# ╠═27d0c7ee-db16-4a6e-9f1e-2fbd29fdf050
-# ╠═8ac44757-b52a-4c4d-83aa-39f328361dcb
-# ╠═7dfdfb02-517d-4d8f-b6da-9f725ddb70b2
-# ╟─5647fd0e-ce4c-4c54-b6b8-5bdcc4a74cd6
-# ╠═07b170ea-1fe4-43ac-b78a-c34e59a55526
-# ╠═7d1e913c-8ca4-45f2-bbc7-904d83bf98fd
+# ╠═b4cbac34-45d8-4057-9fad-e599a88f4c9e
+# ╠═28551f09-c3e2-4c68-b4c8-f901b9ffed9b
+# ╠═6a832d26-f655-462f-8a34-936717b5c2cd
+# ╠═179e9643-2b4c-48fe-8382-4bf7c2b99053
+# ╟─1ce50fe9-d10d-45d0-85a9-d572c894391d
+# ╟─039ea7e4-845c-4fb4-ad2c-582408c558e3
+# ╠═53918f5f-fd16-4fa4-9c92-31db35b914a3
+# ╠═cff72ac8-9b52-4efa-ac5b-f2af92522f43
+# ╠═305680fc-dc51-461e-bc1a-690f99eb485d
+# ╟─2256337e-7cf7-44c0-8855-f019938b878b
 # ╟─c98748bd-545f-49b6-bb6a-e06dd0719d73
 # ╠═ca134138-cc53-4827-927e-3f8c0b8efe28
 # ╠═e6809491-e021-4696-bf44-49a9a1936ac4
@@ -2490,10 +2537,9 @@ version = "4.1.0+0"
 # ╠═41c7c37b-607c-4243-ac0e-b0ed20e6ddf2
 # ╠═91d190c1-a7d5-470b-9c29-1287ca8eb513
 # ╠═4af1676f-5124-41c2-9b4f-b06c143159d5
-# ╟─6eff228a-72f6-4101-9d0f-ab9c3049e06c
 # ╟─337f2660-078f-4224-b83c-98830a66a33e
 # ╟─371bd394-478e-420b-95ab-7d8455df70b4
-# ╟─924a4046-8fce-470f-8a61-a00f35b2fddd
+# ╠═924a4046-8fce-470f-8a61-a00f35b2fddd
 # ╠═171404bd-b308-482a-871b-149a23b807b2
 # ╠═741ec9d0-4202-47b5-b1e0-25bc7e0d84a5
 # ╠═2e5ab3fe-e440-4b6b-bc32-834955b7e065
