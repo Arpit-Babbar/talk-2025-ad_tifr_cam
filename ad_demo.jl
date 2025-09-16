@@ -48,31 +48,32 @@ end
 
 # ╔═╡ 3df9311e-92a0-11ef-3b43-d9393641d811
 html"""
-<h1 class="title-heading"> <center> Automatic differentiation and its application to Lax-Wendroff methods </center> </h1>
+<h1 class="title-heading"> <center> Demonstration of automatic differentiation using dual number arithmetic </center> </h1>
 """
 
 # ╔═╡ f4679910-d41c-4b7b-9737-914909ae7fbd
 html"""
 <center>
-<h5 class="subsubtitle-heading">Arpit Babbar</h5>
-<h5 class="subsubtitle-heading"><center>Humboldt Postdoctoral researcher</h5>
-<h5 class="subsubtitle-heading"><center>Numerical Mathematics, JGU Mainz</h5>
+Based on the material from <a href="https:/github.com/ranocha/Julia_User_Group_Mainz/tree/main/2024-10-31__Introduction_to_AD">github.com/ranocha/Julia_User_Group_Mainz/tree/main/2024-10-31__Introduction_to_AD</a>
 </center>
 """
 
 # ╔═╡ a86a2130-e736-432c-bbbc-98f8130d71db
 html"""
-<h1 class="title-heading"> <center> Finite precision of Finite differences (FD) </h1> </center> 
+<h2 class="title-heading"> <center> Finite precision of Finite differences (FD) </h1> </center> 
 """
 
 # ╔═╡ 23c7e21c-1f58-4a43-9a18-f4d0360e0abc
 begin
 md"""
-$$\frac{f(x + h) - f(x)}{h} \approx f'(x)$$
+$$\frac{f(t + h) - f(t)}{h} \approx f'(t)$$
 
 Round-off error since we represent real numbers via *floating point numbers with fixed precision*.
 """
 end
+
+# ╔═╡ 151d76cf-a1ce-4b64-9661-b34ed516dd30
+nextfloat(1.0)
 
 # ╔═╡ d695f09b-7404-44a2-862c-1a1bf21c76cc
 eps(Float64)
@@ -80,26 +81,21 @@ eps(Float64)
 # ╔═╡ 22832ba3-257f-4daa-b8eb-5ea6094b50c7
 @bind FloatType Select([Float32, Float64, Double64]; default = Float64)
 
-# ╔═╡ 1c0fa36d-fc01-4e84-a48f-6713fb51c101
-html"""
-<h1> <center> Automatic differentiation </center> </h1>
-"""
-
 # ╔═╡ b07832d6-af9e-4827-8f5c-cac2c1577d34
 md"""
-## Example 
-$$f(x) = \log(x^2 + e^{\sin x })$$
-$$f^′(x) = \frac{2 x + e^{\sin x}  \cos x}{x^2 + e^{\sin x}}$$
+## The idea behind automatic differentiation 
+$$f(t) = \log(t^2 + e^{\sin t })$$
+$$f^′(t) = \frac{2 t + e^{\sin t}  \cos t}{t^2 + e^{\sin t}}$$
 """
 
 # ╔═╡ 33b67c04-8e28-4361-a572-6379f3a69ac0
 md"
-# Computational graph of $f$
+## Computational graph of $f$
 "
 
 # ╔═╡ f06c5657-70d2-4300-a6c5-095c0b7a3fba
 md"
-# Computational graph of $f'$
+## Computational graph of $f'$
 "
 
 # ╔═╡ 190fc532-f613-4226-9553-ecae2dc08614
@@ -107,7 +103,7 @@ md"To compute the derivative, we have to apply the chain rule to each step along
 
 # ╔═╡ 57215519-d6d8-4b24-955c-fb947e1d3f05
 md"
-# Dual numbers: Motivation
+## Dual numbers: Motivation
 "
 
 # ╔═╡ b5f457bd-2a23-4508-be74-e7cd820e1d97
@@ -125,7 +121,7 @@ The $\Delta t$ is a formal symbol.
 
 # ╔═╡ 42fb7348-eaf9-4114-a314-dcbafa5f682d
 md"
-# Dual numbers: an algebra
+## Dual numbers: an algebra
 "
 
 # ╔═╡ 1811b4ff-f45a-4144-8f67-abddc79c1f1c
@@ -143,14 +139,26 @@ $$\varepsilon^2 = 0$$
 instead of $\mathrm{i}^2 = -1$. Thus, the dual number have the algebraic structure of an *algebra* instead of a field like the complex numbers $\mathbb{C}$.
 """
 
+# ╔═╡ da94677b-9af7-4f21-ac3f-c3faba346ba1
+md"
+## Dual numbers: multiplication
+"
+
 # ╔═╡ 9217c370-aef6-4b1e-894e-123586204321
 md"""
 In our applications, the $\varepsilon$ part contains the derivative. Indeed, the rule $\varepsilon^2 = 0$ yields
 
 $$(a + \varepsilon b) (c + \varepsilon d) = a c + \varepsilon (a d + b c),$$
 
-which is just the product rule of calculus. You can code this as follows.
+which is just the product rule of calculus because
+
+$$(f(t) + \varepsilon f'(t)) (g(t) + \varepsilon g'(t)) = f(t) g(t) + \varepsilon (f(t) g'(t) + g(t) f'(t)).$$
 """
+
+# ╔═╡ b6ab107c-1863-4f38-99a7-5bbcc75d5486
+md"
+## Implementing dual numbers to perform automatic differentiation
+"
 
 # ╔═╡ a8e22d08-c2c8-4ee4-87fe-7b665edc4a3e
 begin
@@ -176,7 +184,7 @@ Base.:+(x::MyDual, y::MyDual) = MyDual(x.value + y.value, x.deriv + y.deriv)
 # ╔═╡ f48aeca4-2833-4571-82fa-dfddfc3f583b
 Base.:-(x::MyDual, y::MyDual) = MyDual(x.value - y.value, x.deriv - y.deriv)
 
-# ╔═╡ 151d76cf-a1ce-4b64-9661-b34ed516dd30
+# ╔═╡ b9ac9b78-ada7-4a63-bd86-fb7bc5c1bdec
 nextfloat(1.0) - 1.0
 
 # ╔═╡ bbf4cecf-64c8-47c6-9f27-dbebbc59843a
@@ -315,11 +323,11 @@ end
 
 # ╔═╡ 43a3be14-e23a-474f-9f87-b1a8eb29a3c2
 @bind f_diff Select([
-	sin => "f(x) = sin(x)",
-	cos => "f(x) = cos(x)",
-	exp => "f(x) = exp(x)",
-	(x -> sin(100 * x)) => "f(x) = sin(100 x)",
-	(x -> sin(x / 100)) => "f(x) = sin(x / 100)",
+	sin => "f(t) = sin(t)",
+	cos => "f(t) = cos(t)",
+	exp => "f(t) = exp(t)",
+	(t -> sin(100 * t)) => "f(t) = sin(100 t)",
+	(t -> sin(t / 100)) => "f(t) = sin(t / 100)",
 ])
 
 # ╔═╡ 6421ff3c-9b52-45f2-a4d8-8f3358a56d0d
@@ -345,15 +353,15 @@ let
 end
 
 # ╔═╡ c406d7fe-f92b-45ac-86a0-02d6b5142605
-f(x) = log(x^2 + exp(sin(x)));
+f(t) = log(t^2 + exp(sin(t)));
 
 # ╔═╡ 03435083-c0b6-4d10-8326-cae43b55cd4b
-f′(x) = 1 / (x^2 + exp(sin(x))) * (2 * x + exp(sin(x)) * cos(x));
+f′(t) = 1 / (t^2 + exp(sin(t))) * (2 * t + exp(sin(t)) * cos(t));
 
 # ╔═╡ 926aad9a-9beb-45ab-ad74-796b495e3049
-function f_graph(x)
-	c1 = x^2
-	c2 = sin(x)
+function f_graph(t)
+	c1 = t^2
+	c2 = sin(t)
 	c3 = exp(c2)
 	c4 = c1 + c3
 	c5 = log(c4)
@@ -361,12 +369,12 @@ function f_graph(x)
 end
 
 # ╔═╡ 9cfb64ed-e004-46e3-bd41-4256127be994
-function f_graph_derivative(x)
-	c1 = x^2
-	c1_ε = 2 * x
+function f_graph_derivative(t)
+	c1 = t^2
+	c1_ε = 2 * t
 	
-	c2 = sin(x)
-	c2_ε = cos(x)
+	c2 = sin(t)
+	c2_ε = cos(t)
 	
 	c3 = exp(c2)
 	c3_ε = exp(c2) * c2_ε
@@ -567,8 +575,8 @@ f(Ax_b::AbstractVector) = sum(abs2, Ax_b)
 f(1.0) ≈ f_graph(1.0)
 
 # ╔═╡ 91796846-fb91-491f-9fa0-3678ddf8e93d
-let x = 1.0, h = sqrt(eps())
-	(f(x + h) - f(x)) / h
+let t = 1.0, h = sqrt(eps())
+	(f(t + h) - f(t)) / h
 end
 
 # ╔═╡ 375e0d9f-c645-4e46-a587-b23171285864
@@ -2370,17 +2378,17 @@ version = "4.1.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═3df9311e-92a0-11ef-3b43-d9393641d811
+# ╟─3df9311e-92a0-11ef-3b43-d9393641d811
 # ╟─f4679910-d41c-4b7b-9737-914909ae7fbd
 # ╟─a86a2130-e736-432c-bbbc-98f8130d71db
 # ╟─23c7e21c-1f58-4a43-9a18-f4d0360e0abc
 # ╠═151d76cf-a1ce-4b64-9661-b34ed516dd30
+# ╠═b9ac9b78-ada7-4a63-bd86-fb7bc5c1bdec
 # ╠═d695f09b-7404-44a2-862c-1a1bf21c76cc
 # ╠═bbf4cecf-64c8-47c6-9f27-dbebbc59843a
 # ╟─43a3be14-e23a-474f-9f87-b1a8eb29a3c2
 # ╟─22832ba3-257f-4daa-b8eb-5ea6094b50c7
 # ╟─6421ff3c-9b52-45f2-a4d8-8f3358a56d0d
-# ╟─1c0fa36d-fc01-4e84-a48f-6713fb51c101
 # ╟─b07832d6-af9e-4827-8f5c-cac2c1577d34
 # ╠═c406d7fe-f92b-45ac-86a0-02d6b5142605
 # ╠═03435083-c0b6-4d10-8326-cae43b55cd4b
@@ -2397,7 +2405,9 @@ version = "4.1.0+0"
 # ╟─b5f457bd-2a23-4508-be74-e7cd820e1d97
 # ╟─42fb7348-eaf9-4114-a314-dcbafa5f682d
 # ╟─1811b4ff-f45a-4144-8f67-abddc79c1f1c
+# ╟─da94677b-9af7-4f21-ac3f-c3faba346ba1
 # ╟─9217c370-aef6-4b1e-894e-123586204321
+# ╟─b6ab107c-1863-4f38-99a7-5bbcc75d5486
 # ╠═a8e22d08-c2c8-4ee4-87fe-7b665edc4a3e
 # ╟─9367a32a-160f-418b-9938-8e766a77e475
 # ╠═d329aecc-4696-4740-9a86-d5da14cce69b
