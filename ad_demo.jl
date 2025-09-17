@@ -54,7 +54,7 @@ html"""
 # ╔═╡ f4679910-d41c-4b7b-9737-914909ae7fbd
 html"""
 <center>
-Based on the material from the <a href="https:/github.com/ranocha/Julia_User_Group_Mainz/tree/main/2024-10-31__Introduction_to_AD">Mainz Julia user group</a>
+Based on the material from the <a href="https:/github.com/ranocha/Julia_User_Group_Mainz/tree/main/2024-10-31__Introduction_to_AD">talk by Hendrik Ranocha in the Mainz Julia user group</a>
 </center>
 """
 
@@ -198,10 +198,16 @@ $$f(t) + \varepsilon f'(t) \pm g(t) + \varepsilon g'(t) = (f \pm g)(t) + \vareps
 """
 
 # ╔═╡ 597ac91c-ac82-4281-903e-57d82cd2c79b
-Base.:+(x::Dual, y::Dual) = Dual(x.value + y.value, x.deriv + y.deriv)
+begin
+	import Base: +
+	+(x::Dual, y::Dual) = Dual(x.value + y.value, x.deriv + y.deriv)
+end;
 
 # ╔═╡ f48aeca4-2833-4571-82fa-dfddfc3f583b
-Base.:-(x::Dual, y::Dual) = Dual(x.value - y.value, x.deriv - y.deriv)
+begin
+	import Base: -
+	-(x::Dual, y::Dual) = Dual(x.value - y.value, x.deriv - y.deriv)
+end;
 
 # ╔═╡ b9ac9b78-ada7-4a63-bd86-fb7bc5c1bdec
 nextfloat(1.0) - 1.0
@@ -224,7 +230,7 @@ $$[f(t) + \varepsilon f'(t)] [g(t) + \varepsilon g'(t)] = f(t) g(t) + \varepsilo
 
 # ╔═╡ ce5d4c1e-fcf6-425a-8124-0c07f1bc1de0
 md"""
-$$[f(t) + \varepsilon f'(t)] [g(t) + \varepsilon g'(t)] = f(t) g(t) + \varepsilon (f(t) g'(t) + g(t) f'(t)).$$
+$$[f(t) + \varepsilon f'(t)] / [g(t) + \varepsilon g'(t)] = \frac{f}{g}(t) + \varepsilon \frac{f' g - f g'}{g^2}(t).$$
 """
 
 # ╔═╡ 2b42cf3b-1507-4f5b-9cc9-6ae90e490966
@@ -236,14 +242,14 @@ md"
 md"""
 Let
 
-$D(a,b)= D(f(c),f'(c)) = \texttt{Dual}(f(c),f'(c))$
+$\large D(a,b)= D(f(c),f'(c)) = \texttt{Dual}(f(c),f'(c))$
 Then we want
 
-$\begin{align}g(D(f(c),f'(c))) &= D(g(f(c)), (gof)'(c)) \\ &= D(g(f(c)), g'(f(c)) f'(c)) \\ \implies g(D(a, b)) &= D(g(a), g'(a) b)\end{align}$
+$\large \begin{align}g(D(f(c),f'(c))) &= D(g(f(c)), (gof)'(c)) \\ &= D(g(f(c)), g'(f(c)) f'(c)) \\ \implies g(D(a, b)) &= D(g(a), g'(a) b)\end{align}$
 
-In particular, choosing $f(x) = x$ 
+In particular, choosing $f(t) = t$ 
 
-$\begin{align}g(D(c,1)) &= D(g(c), g'(c))\end{align}$
+$\large \begin{align}g(D(c,1)) &= D(g(c), g'(c))\end{align}$
 """
 
 # ╔═╡ dab7c717-8980-4f52-b8af-b0d09577771f
@@ -338,9 +344,12 @@ end
 Dual(1, 2) + Dual(2, 3)
 
 # ╔═╡ 3c2c092d-2d52-4379-99f0-6ccc2d237668
-function Base.:*(x::Dual, y::Dual)
-	Dual(x.value * y.value, x.value * y.deriv + x.deriv * y.value)
-end
+begin
+	import Base: *
+	function *(x::Dual, y::Dual)
+		Dual(x.value * y.value, x.value * y.deriv + x.deriv * y.value)
+	end
+end;
 
 # ╔═╡ 590f30b1-9c90-4b03-83da-bea3ea92dd60
 Dual(1.0, 2.0) + 3.0
@@ -354,9 +363,12 @@ end
 Dual(1, 2) * Dual(2.0, 3)
 
 # ╔═╡ 4afbb4a3-3630-4e80-90b9-f7d1a946dc43
-function Base.:/(x::Dual, y::Dual)
-	Dual(x.value / y.value, (x.deriv * y.value - x.value * y.deriv) / y.value^2)
-end
+begin
+	import Base: /
+	function /(x::Dual, y::Dual)
+		Dual(x.value / y.value, (x.deriv * y.value - x.value * y.deriv) / y.value^2)
+	end
+end;
 
 # ╔═╡ 92a7e494-86b5-4d1f-ad6b-622b5f184bfe
 Dual(1, 2) / Dual(2.0, 3)
